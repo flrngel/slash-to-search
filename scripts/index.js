@@ -4,18 +4,23 @@
   var activeElement = null;
 
   // Helper function to recursively query elements including those in shadow DOM
-  function querySelectorAllDeep(selector, root = document) {
+  function querySelectorAllDeep(selector, root = document, maxDepth = 10, currentDepth = 0) {
     const elements = [];
     
     // Query elements in current root
     const foundElements = root.querySelectorAll(selector);
     elements.push(...foundElements);
     
+    // Stop if max depth reached
+    if (currentDepth >= maxDepth) {
+      return elements;
+    }
+    
     // Recursively search in shadow roots
     const allElements = root.querySelectorAll('*');
     allElements.forEach(element => {
       if (element.shadowRoot) {
-        const shadowElements = querySelectorAllDeep(selector, element.shadowRoot);
+        const shadowElements = querySelectorAllDeep(selector, element.shadowRoot, maxDepth, currentDepth + 1);
         elements.push(...shadowElements);
       }
     });
@@ -24,16 +29,21 @@
   }
 
   // Helper function to check if an element exists using deep shadow DOM search
-  function querySelectorDeep(selector, root = document) {
+  function querySelectorDeep(selector, root = document, maxDepth = 10, currentDepth = 0) {
     // First try regular query
     let element = root.querySelector(selector);
     if (element) return element;
+    
+    // Stop if max depth reached
+    if (currentDepth >= maxDepth) {
+      return null;
+    }
     
     // Search in shadow roots
     const allElements = root.querySelectorAll('*');
     for (const el of allElements) {
       if (el.shadowRoot) {
-        element = querySelectorDeep(selector, el.shadowRoot);
+        element = querySelectorDeep(selector, el.shadowRoot, maxDepth, currentDepth + 1);
         if (element) return element;
       }
     }
