@@ -2,6 +2,54 @@
 (function() {
 
   var activeElement = null;
+
+  // Helper function to recursively query elements including those in shadow DOM
+  function querySelectorAllDeep(selector, root = document, maxDepth = 10, currentDepth = 0) {
+    const elements = [];
+    
+    // Query elements in current root
+    const foundElements = root.querySelectorAll(selector);
+    elements.push(...foundElements);
+    
+    // Stop if max depth reached
+    if (currentDepth >= maxDepth) {
+      return elements;
+    }
+    
+    // Recursively search in shadow roots
+    const allElements = root.querySelectorAll('*');
+    allElements.forEach(element => {
+      if (element.shadowRoot) {
+        const shadowElements = querySelectorAllDeep(selector, element.shadowRoot, maxDepth, currentDepth + 1);
+        elements.push(...shadowElements);
+      }
+    });
+    
+    return elements;
+  }
+
+  // Helper function to check if an element exists using deep shadow DOM search
+  function querySelectorDeep(selector, root = document, maxDepth = 10, currentDepth = 0) {
+    // First try regular query
+    let element = root.querySelector(selector);
+    if (element) return element;
+    
+    // Stop if max depth reached
+    if (currentDepth >= maxDepth) {
+      return null;
+    }
+    
+    // Search in shadow roots
+    const allElements = root.querySelectorAll('*');
+    for (const el of allElements) {
+      if (el.shadowRoot) {
+        element = querySelectorDeep(selector, el.shadowRoot, maxDepth, currentDepth + 1);
+        if (element) return element;
+      }
+    }
+    
+    return null;
+  }
   chrome.runtime.onMessage.addListener(
     function(request, sender, sendResponse) {
       // set focus on search box when page loads
@@ -140,7 +188,7 @@
   function pageHasSearchOrTextInputTypes() {
 
     if (
-      document.querySelector(
+      querySelectorDeep(
         `[class*=search i],
         [id*=search i],
         input[type=text],
@@ -179,7 +227,7 @@
           var elementName = configParts[0];
           var elementIndex = configParts[1];
 
-          output.push(document.querySelectorAll(elementName)[ elementIndex ]);
+          output.push(querySelectorAllDeep(elementName)[ elementIndex ]);
         });
 
         return output;
@@ -216,7 +264,7 @@
 
     var searchElement;
 
-    var inputs = document.querySelectorAll('input');
+    var inputs = querySelectorAllDeep('input');
 
     for (var i = 0; i < inputs.length; i++) {
 
@@ -263,7 +311,7 @@
 
     var activeElementName = activeElement.nodeName.toLowerCase();
 
-    var matchingElements = Array.from(document.querySelectorAll(activeElementName));
+    var matchingElements = Array.from(querySelectorAllDeep(activeElementName));
     var elementIndex = matchingElements.indexOf(activeElement);
 
     var searchConfigText = `${activeElementName}Element${elementIndex}`;
